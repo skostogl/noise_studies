@@ -4,6 +4,12 @@ from cl2pd import importData
 from cl2pd import plotFunctions
 from cl2pd import variablesDF
 import pandas as pd, seaborn as sns, matplotlib.pyplot as plt
+from utils import *
+from dateutil import tz
+import os
+import datetime
+import calendar
+import h5py as h5
 
 ct = dotdict.dotdict
 pd = importData.pd
@@ -122,7 +128,7 @@ def flattenoverlap(v,timestamps, frf,test=100,start=0):
   print("average overlap %.2f samples"%np.average(stat))
   return np.hstack(out), np.hstack(out2), np.hstack(out3)
 
-def get_data(modes, time, rename_duplicates=False, remove_overlap=False):
+def get_data(modes, time, rename_duplicates=False, remove_overlap=False, n=8000):
 
     """
     TbT data for the modes and time specified
@@ -174,7 +180,7 @@ def get_data(modes, time, rename_duplicates=False, remove_overlap=False):
                   for name,(timestamps,values, values2) in test.items():
                       flatten[name], timestamps2, frf2=flattenoverlap(values, timestamps, values2)
                   step=1
-                  n = 8000
+                  #n = 8000
                   turns = np.arange(0, len(flatten[var[0]]))
                   chunk_t = [turns[x:x+n] for x in xrange(0, len(turns)-n, step)]
                   chunk_var = [flatten[var[0]][x:x+n] for x in xrange(0, len(flatten[var[0]])-n, step)]
@@ -299,6 +305,7 @@ def get_fft(df, fr=50, df_fft = None):
       df_fft['%s%s' %(key,str(j))] = pd.DataFrame(data = lists[j], columns = ['status', 'h', 'bin','f','fourier', 'timestamps', 'turns', 'beam', 'plane'])
     else:
       df_fft['%s%s' %(key,str(j))] = pd.DataFrame(data = lists[j], columns = ['status', 'h', 'bin','f','fourier', 'timestamps','beam', 'plane'])
+      df_fft['%s%s' %(key,str(j))].set_index(['timestamps'],inplace=True)
   return df_fft
 
 
@@ -447,7 +454,10 @@ def heatmaps(df, status = 'all',beam = 'all', plane='all', mode='amplitude', thr
         if ax is None:
           fig1, ax1 = plt.subplots(figsize=(9, 6))
         else:
-          plt.sca(ax[counter_plane, counter_beam])
+          try:
+            plt.sca(ax[counter_plane, counter_beam])
+          except:
+            plt.sca(ax[counter_beam])
         plt.title('%s , %s%s , %s' % (mode, beams, planes , stat), fontsize=16)
         plt.xlabel('h')
         plt.ylabel('h')
@@ -495,12 +505,12 @@ def plot_harm(hs, df, status = 'all',beam = 'all', plane='all', mode='amplitude'
 
   if beam == 'all':
     beam = df[df.keys()[0]]['beam'].unique()
+  if plane == 'all':
+    plane = df[df.keys()[0]]['plane'].unique()
+  if status == 'all':
+    status = df[df.keys()[0]]['status'].unique()
   for beams in beam:
-    if plane == 'all':
-      plane = df[df.keys()[0]]['plane'].unique()
     for planes in plane:
-      if status == 'all':
-        status = df[df.keys()[0]]['status'].unique()
       fig1, ax1 = plt.subplots(figsize=(12,6))
       plt.title('%s, %s' %(beams,planes))
       for stat in status:
@@ -519,9 +529,12 @@ def plot_harm(hs, df, status = 'all',beam = 'all', plane='all', mode='amplitude'
             else: 
               a = 1.0
             if stat==status[0] :
-             (group['fourier'].abs()/a).plot(ax=ax1, c=c1, label=label, legend=True)
+              #(group['fourier'].abs()/a).plot(ax=ax1, c=c1, label=label, legend=True)
+              ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1, label=label)
+              ax1.legend()  
             else:
-              (group['fourier'].abs()/a).plot(ax=ax1, c=c1, legend=False)
+             # (group['fourier'].abs()/a).plot(ax=ax1, c=c1, legend=False)
+              ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1)
 
 
           elif mode == 'angle':
@@ -544,4 +557,24 @@ def plot_harm(hs, df, status = 'all',beam = 'all', plane='all', mode='amplitude'
               signal1 = np.unwrap(np.angle(group['fourier']))
               signal2 = x0 + 2.0*np.pi*f*turns
               ax1.plot(turns, signal1-signal2, linestyle = '--', linewidth=2, c=c1, label = label)
-              ax1.legend()  
+            ax1.legend() 
+
+def ob_tbt(filename, fill_number):
+  df = importData.LHCFillsByNumber(fill_number)
+  df = df[df['mode']!='FILL']
+  df = df.reset_index(drop=True) 
+
+  fi = h5.File(filename, 'r')
+  date = (filename.split('_')[-2])
+  time = (filename.split('_')[-1]).split('.')[0]
+  beam = (filename.split('_')[-4])[0:2]
+  plane = (filename.split('_')[-4])[2:3]
+  if plane == 'H':
+    plane = 'horizontal'
+  else:
+    plane = 'vertical'
+  date2 = ((datetime.datetime.strptime(date+time, "%Y%m%d%Hh%Mm%Ss")))
+  date_current = ((datetime.datetime.strptime(date+time, "%Y%m%d%Hh%Mm%Ss")).replace(tzinfo=tz.gettz('CET'))).astimezone(tz.gettz('UTC'))
+  print "File at: ",  date2, ' (CET) ', date_current, ' (UTC) ' , ' Status: ' , df[(df['startTime']<=date_current)  & (df['endTime']>=date_current)]['mode'].values
+  alldat = fi[beam][plane]
+  return alldat
