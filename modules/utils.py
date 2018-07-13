@@ -474,9 +474,9 @@ def heatmaps(df, status = 'all',beam = 'all', plane='all', mode='amplitude', thr
           mask = (pval<pval_threshold) 
           corr = corr*mask
         if flag_set_lim:
-          axs = sns.heatmap(corr, xticklabels=10, yticklabels=10, vmin=-1, vmax=1, cbar_kws={'label': 'Correlation coefficients'}, cmap='seismic')
+          axs = sns.heatmap(corr, xticklabels=15, yticklabels=15, vmin=-1, vmax=1, cbar_kws={'label': 'Correlation coefficients'}, cmap='seismic')
         else:
-          axs = sns.heatmap(corr, xticklabels=10, yticklabels=10, cbar_kws={'label': 'Correlation coefficients'}, cmap='seismic', ax = ax[counter_beam, counter_plane])
+          axs = sns.heatmap(corr, xticklabels=15, yticklabels=15, cbar_kws={'label': 'Correlation coefficients'}, cmap='seismic', ax = ax[counter_beam, counter_plane])
         plt.tight_layout()
         #plt.show()
         a = get_top_abs_correlations(dfnew, n1=0, n2=300, threshold = threshold)
@@ -523,21 +523,24 @@ def plot_harm(hs, df, status = 'all',beam = 'all', plane='all', mode='amplitude'
           group = df['%s%s' %(search,h)]
           group = group[ (group['beam'] == beams) & (group['plane'] == planes) & (group['status'] == stat)]
           if mode == 'amplitude':
+            ax1.grid()
             if normalise:
            
               a = group['fourier'].abs().max()
             else: 
               a = 1.0
             if stat==status[0] :
-              #(group['fourier'].abs()/a).plot(ax=ax1, c=c1, label=label, legend=True)
-              ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1, label=label)
+              (group['fourier'].abs()/a).plot(ax=ax1, c=c1, label=label, legend=True)
+              #ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1, label=label)
               ax1.legend()  
+              ax1.grid()
             else:
-             # (group['fourier'].abs()/a).plot(ax=ax1, c=c1, legend=False)
-              ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1)
-
-
+              (group['fourier'].abs()/a).plot(ax=ax1, c=c1, legend=False)
+              #ax1.scatter(group['fourier'].index, group['fourier'].abs()/a, c=c1)
+            ax1.set_ylabel('Amplitude')  
           elif mode == 'angle':
+            ax1.grid()
+            ax1.set_ylabel('Angle')  
             if not remove_slope:
               if stat==status[0] :
                 ax1.plot(group['turns'], np.unwrap(np.angle(group['fourier'])), c=c1, label = label)
