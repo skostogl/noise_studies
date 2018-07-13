@@ -452,7 +452,7 @@ def heatmaps(df, status = 'all',beam = 'all', plane='all', mode='amplitude', thr
         corr = dfnew.corr()
         pval = calculate_pvalues(dfnew)
         if ax is None:
-          fig1, ax1 = plt.subplots(figsize=(9, 6))
+          fig1, ax1 = plt.subplots(figsize=(10, 8))
         else:
           try:
             plt.sca(ax[counter_plane, counter_beam])
